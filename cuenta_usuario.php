@@ -1,6 +1,7 @@
 <?php
 session_start();
-include 'db.php';
+require_once 'db_connection.php'; // Usar la nueva conexión PDO
+require_once 'cart_id.php';       // Para obtener $cart_id
 
 // Verifica si el usuario ha iniciado sesión
 if (!isset($_SESSION['id_Usuario'])) {
@@ -10,13 +11,17 @@ if (!isset($_SESSION['id_Usuario'])) {
 
 $id_usuario = $_SESSION['id_Usuario'];
 
-// Obtener detalles adicionales del usuario
+// Obtener detalles adicionales del usuario usando PDO
 $consulta_usuario = "SELECT Email_usua, Telefono_usua, Direccion_usua, Ciudad_usua, Nombres_usua, Apellidos_usua, Foto_usua FROM usuario WHERE id_Usuario = ?";
-$sentencia_usuario = mysqli_prepare($conexion, $consulta_usuario);
-mysqli_stmt_bind_param($sentencia_usuario, "i", $id_usuario);
-mysqli_stmt_execute($sentencia_usuario);
-$resultado_usuario = mysqli_stmt_get_result($sentencia_usuario);
-$datos_usuario = mysqli_fetch_assoc($resultado_usuario);
+$stmt_usuario = $pdo->prepare($consulta_usuario);
+$stmt_usuario->execute([$id_usuario]);
+$datos_usuario = $stmt_usuario->fetch(PDO::FETCH_ASSOC);
+
+if (!$datos_usuario) {
+    // Manejar caso donde el usuario no se encuentra (ej. redirigir o mostrar error)
+    header("Location: salir.php"); // O a una página de error
+    exit();
+}
 
 $nombre_completo = $datos_usuario['Nombres_usua'] . " " . $datos_usuario['Apellidos_usua'];
 $email = $datos_usuario['Email_usua'];
@@ -25,7 +30,7 @@ $direccion = $datos_usuario['Direccion_usua'];
 $ciudad = $datos_usuario['Ciudad_usua'];
 $foto = !empty($datos_usuario['Foto_usua']) ? $datos_usuario['Foto_usua'] : 'usuario.jpg';
 
-// Obtener los últimos 2 productos comprados (Favoritos)
+// Obtener los últimos 2 productos comprados (Favoritos) usando PDO
 $consulta_favoritos = "
     SELECT p.Nombres_prod, p.id_Producto, p.Imagen_prod
     FROM factura f 
@@ -34,23 +39,19 @@ $consulta_favoritos = "
     ORDER BY f.id_Factura DESC 
     LIMIT 2
 ";
-$sentencia_favoritos = mysqli_prepare($conexion, $consulta_favoritos);
-mysqli_stmt_bind_param($sentencia_favoritos, "i", $id_usuario);
-mysqli_stmt_execute($sentencia_favoritos);
-$resultado_favoritos = mysqli_stmt_get_result($sentencia_favoritos);
-$favoritos = [];
-while ($fila = mysqli_fetch_assoc($resultado_favoritos)) {
-    $favoritos[] = $fila;
+$stmt_favoritos = $pdo->prepare($consulta_favoritos);
+$stmt_favoritos->execute([$id_usuario]);
+$favoritos = $stmt_favoritos->fetchAll(PDO::FETCH_ASSOC);
+
+// Recuperar los ítems del carrito para el cart_id actual para calcular la cantidad
+$stmt_cart = $pdo->prepare("SELECT quantity FROM cart_items WHERE cart_id = ?");
+$stmt_cart->execute([$cart_id]);
+$cart_items_quantities = $stmt_cart->fetchAll(PDO::FETCH_ASSOC);
+
+$cantidad_carrito = 0;
+foreach ($cart_items_quantities as $item) {
+    $cantidad_carrito += $item['quantity'];
 }
-?>
-<?php
-require_once 'cart_id.php';
-
-// La variable $cart_id está disponible y contiene el ID único del carrito.
-// Puedes usar $cart_id para:
-// 1. Consultar la base de datos para cargar los ítems del carrito asociados a este ID.
-// 2. Guardar nuevos ítems o actualizaciones del carrito en la base de datos usando este ID.
-
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -92,7 +93,7 @@ require_once 'cart_id.php';
             <ul>
                 <li><a href="salir.php">Salir</a></li>
                 <li><a href="productos.php">Productos</a></li>
-                <li><a href="carrito.php">Carrito (<?php echo isset($_SESSION['carrito']) ? count($_SESSION['carrito']) : 0; ?>)</a></li>
+                <li><a href="carrito.php">Carrito (<?php echo $cantidad_carrito; ?>)</a></li>
                 <li><a href="#tiendas">Tiendas</a></li>
                 <li><a href="#Buscar">Buscar</a></li>
             </ul>
