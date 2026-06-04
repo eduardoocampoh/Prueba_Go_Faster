@@ -1,6 +1,7 @@
 <?php
 session_start();
-include 'db.php';
+require_once 'db_connection.php'; // Usar la nueva conexión PDO
+require_once 'cart_id.php';       // Para obtener $cart_id
 
 // Obtener todos los productos con sus nombres de restaurante
 $consulta = "
@@ -9,16 +10,19 @@ $consulta = "
     JOIN restaurante r ON p.id_restaurante = r.id_Restaurante 
     ORDER BY r.Nombres_rest, p.Nombres_prod
 ";
-$resultado = mysqli_query($conexion, $consulta);
-?>
-<?php
-require_once 'cart_id.php';
+// Usar PDO para la consulta
+$stmt = $pdo->query($consulta);
+$productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// La variable $cart_id está disponible y contiene el ID único del carrito.
-// Puedes usar $cart_id para:
-// 1. Consultar la base de datos para cargar los ítems del carrito asociados a este ID.
-// 2. Guardar nuevos ítems o actualizaciones del carrito en la base de datos usando este ID.
+// Recuperar los ítems del carrito para el cart_id actual para calcular la cantidad
+$stmt_cart = $pdo->prepare("SELECT quantity FROM cart_items WHERE cart_id = ?");
+$stmt_cart->execute([$cart_id]);
+$cart_items_quantities = $stmt_cart->fetchAll(PDO::FETCH_ASSOC);
 
+$cantidad_carrito = 0;
+foreach ($cart_items_quantities as $item) {
+    $cantidad_carrito += $item['quantity'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -136,7 +140,7 @@ require_once 'cart_id.php';
                     <li><a href="registro_usuario.php">Registrarse</a></li>
                 <?php endif; ?>
                 <li><a href="productos.php">Productos</a></li>
-                <li><a href="carrito.php">Carrito (<?php echo isset($_SESSION['carrito']) ? count($_SESSION['carrito']) : 0; ?>)</a></li>
+                <li><a href="carrito.php">Carrito (<?php echo $cantidad_carrito; ?>)</a></li>
                 <li><a href="#tiendas">Tiendas</a></li>
             </ul>
         </nav>
@@ -158,7 +162,7 @@ require_once 'cart_id.php';
     </header>
 
     <main class="productos_grid">
-        <?php while($fila = mysqli_fetch_assoc($resultado)): ?>
+        <?php foreach($productos as $fila): ?>
             <div class="producto_card">
                 <div class="producto_img_container">
                     <?php 
@@ -175,15 +179,12 @@ require_once 'cart_id.php';
                         
                         <form action="agregar_carrito.php" method="POST" style="margin: 0;">
                             <input type="hidden" name="id_producto" value="<?php echo $fila['id_Producto']; ?>">
-                            <input type="hidden" name="nombre" value="<?php echo htmlspecialchars($fila['Nombres_prod']); ?>">
-                            <input type="hidden" name="precio" value="<?php echo $fila['Precio_prod']; ?>">
-                            <input type="hidden" name="imagen" value="<?php echo htmlspecialchars($img); ?>">
                             <button type="submit" class="btn_agregar">Agregar</button>
                         </form>
                     </div>
                 </div>
             </div>
-        <?php endwhile; ?>
+        <?php endforeach; ?>
     </main>
 
     <script src="script.js"></script>
