@@ -132,3 +132,25 @@ CREATE TABLE `domicilio` (
 
 -- Sample data for `domicilio`
 INSERT INTO `domicilio` VALUES (1,100,3,1,1),(2,101,5,2,2),(3,102,1,4,1),(4,104,6,2,2),(5,105,2,3,1),(6,106,4,4,2);
+
+-- 7. Table structure for table `carts`
+DROP TABLE IF EXISTS `carts`;
+CREATE TABLE `carts` (
+    id VARCHAR(32) PRIMARY KEY,
+    user_id INT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- 8. Table structure for table `cart_items`
+DROP TABLE IF EXISTS `cart_items`;
+CREATE TABLE `cart_items` (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    cart_id VARCHAR(32) NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    price DECIMAL(10, 2) NOT NULL,
+    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (cart_id) REFERENCES carts(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES producto(id_Producto) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

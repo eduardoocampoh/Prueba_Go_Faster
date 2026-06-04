@@ -1,22 +1,47 @@
 <?php
-session_start();
+session_start(); // Mantener session_start() para otras posibles variables de sesión (ej. id_Usuario)
+require_once 'db_connection.php'; // Conexión a la base de datos
+require_once 'cart_id.php';       // Para obtener $cart_id
+
+// Inicializar/Crear el Carrito en la Base de Datos si no existe
+$stmt = $pdo->prepare("SELECT id FROM carts WHERE id = ?");
+$stmt->execute([$cart_id]);
+$existing_cart = $stmt->fetch();
+
+if (!$existing_cart) {
+    $stmt = $pdo->prepare("INSERT INTO carts (id, created_at, updated_at) VALUES (?, NOW(), NOW())");
+    $stmt->execute([$cart_id]);
+}
+// Si el usuario está autenticado, también podrías actualizar user_id aquí
+if (isset($_SESSION['id_Usuario'])) {
+    $stmt = $pdo->prepare("UPDATE carts SET user_id = ?, updated_at = NOW() WHERE id = ?");
+    $stmt->execute([$_SESSION['id_Usuario'], $cart_id]);
+}
+
+
+// Recuperar los ítems del carrito para el cart_id actual
+$stmt = $pdo->prepare("
+    SELECT
+        ci.product_id,
+        ci.quantity,
+        ci.price AS item_price,
+        p.Nombres_prod AS product_name,
+        p.Imagen_prod AS product_image
+    FROM
+        cart_items ci
+    JOIN
+        producto p ON ci.product_id = p.id_Producto
+    WHERE
+        ci.cart_id = ?
+");
+$stmt->execute([$cart_id]);
+$cart_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Calcular la cantidad total de items en el carrito para mostrar en el menú
 $cantidad_carrito = 0;
-if (isset($_SESSION['carrito'])) {
-    foreach ($_SESSION['carrito'] as $producto) {
-        $cantidad_carrito += $producto['cantidad'];
-    }
+foreach ($cart_items as $item) {
+    $cantidad_carrito += $item['quantity'];
 }
-?>
-<?php
-require_once 'cart_id.php';
-
-// La variable $cart_id está disponible y contiene el ID único del carrito.
-// Puedes usar $cart_id para:
-// 1. Consultar la base de datos para cargar los ítems del carrito asociados a este ID.
-// 2. Guardar nuevos ítems o actualizaciones del carrito en la base de datos usando este ID.
-
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -144,21 +169,21 @@ require_once 'cart_id.php';
     <div class="carrito_container">
         <h1 style="text-align: center; color: #333;">Tu Carrito de Compras</h1>
         
-        <?php if(isset($_SESSION['carrito']) && count($_SESSION['carrito']) > 0): ?>
+        <?php if(!empty($cart_items)): ?>
             
             <?php 
             $total_general = 0;
-            foreach($_SESSION['carrito'] as $id_producto => $producto): 
-                $subtotal = $producto['precio'] * $producto['cantidad'];
+            foreach($cart_items as $item): 
+                $subtotal = $item['item_price'] * $item['quantity'];
                 $total_general += $subtotal;
             ?>
                 <div class="carrito_item">
-                    <img src="imagenes/<?php echo htmlspecialchars($producto['imagen']); ?>" alt="<?php echo htmlspecialchars($producto['nombre']); ?>">
+                    <img src="imagenes/<?php echo htmlspecialchars($item['product_image']); ?>" alt="<?php echo htmlspecialchars($item['product_name']); ?>">
                     
                     <div class="carrito_info">
-                        <h3><?php echo htmlspecialchars($producto['nombre']); ?></h3>
-                        <p>Precio unitario: $<?php echo number_format($producto['precio'], 0, ',', '.'); ?></p>
-                        <p>Cantidad: <strong><?php echo $producto['cantidad']; ?></strong></p>
+                        <h3><?php echo htmlspecialchars($item['product_name']); ?></h3>
+                        <p>Precio unitario: $<?php echo number_format($item['item_price'], 0, ',', '.'); ?></p>
+                        <p>Cantidad: <strong><?php echo $item['quantity']; ?></strong></p>
                     </div>
                     
                     <div class="carrito_acciones">
@@ -166,7 +191,7 @@ require_once 'cart_id.php';
                         
                         <!-- Formulario para eliminar el producto -->
                         <form action="eliminar_carrito.php" method="POST">
-                            <input type="hidden" name="id_producto" value="<?php echo $id_producto; ?>">
+                            <input type="hidden" name="id_producto" value="<?php echo $item['product_id']; ?>">
                             <button type="submit" class="btn_eliminar">Eliminar</button>
                         </form>
                     </div>

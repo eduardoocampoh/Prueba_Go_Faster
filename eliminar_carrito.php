@@ -1,25 +1,21 @@
 <?php
-session_start();
+session_start(); // Mantener session_start() por si se usa para otras cosas
+require_once 'db_connection.php'; // Conexión a la base de datos
+require_once 'cart_id.php';       // Para obtener $cart_id
 
-if (isset($_POST['id_producto']) && isset($_SESSION['carrito'])) {
-    $id_producto = $_POST['id_producto'];
+if (isset($_POST['id_producto'])) {
+    $product_id = (int)$_POST['id_producto'];
     
-    // Si el producto existe en el carrito, lo eliminamos
-    if (isset($_SESSION['carrito'][$id_producto])) {
-        unset($_SESSION['carrito'][$id_producto]);
-    }
+    // Eliminar el producto de la tabla cart_items
+    $stmt = $pdo->prepare("DELETE FROM cart_items WHERE cart_id = ? AND product_id = ?");
+    $stmt->execute([$cart_id, $product_id]);
+
+    // Opcional: Actualizar la fecha de actualización del carrito principal
+    $stmt = $pdo->prepare("UPDATE carts SET updated_at = NOW() WHERE id = ?");
+    $stmt->execute([$cart_id]);
 }
 
 // Redirigimos de vuelta al carrito
 header("Location: carrito.php");
 exit();
-?>
-<?php
-require_once 'cart_id.php';
-
-// La variable $cart_id está disponible y contiene el ID único del carrito.
-// Puedes usar $cart_id para:
-// 1. Consultar la base de datos para cargar los ítems del carrito asociados a este ID.
-// 2. Guardar nuevos ítems o actualizaciones del carrito en la base de datos usando este ID.
-
 ?>
