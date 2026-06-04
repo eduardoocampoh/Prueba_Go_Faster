@@ -6,6 +6,14 @@ include 'db.php';
 $consulta_destacados = "SELECT p.*, r.Nombres_rest FROM producto p JOIN restaurante r ON p.id_restaurante = r.id_Restaurante ORDER BY RAND() LIMIT 4";
 $resultado_destacados = mysqli_query($conexion, $consulta_destacados);
 ?>
+<?php
+require_once 'cart_id.php';
+
+// La variable $cart_id está disponible y contiene el ID único del carrito.
+// Puedes usar $cart_id para:
+// 1. Consultar la base de datos para cargar los ítems del carrito asociados a este ID.
+// 2. Guardar nuevos ítems o actualizaciones del carrito en la base de datos usando este ID.
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>

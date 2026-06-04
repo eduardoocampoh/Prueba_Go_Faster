@@ -11,6 +11,15 @@ $consulta = "
 ";
 $resultado = mysqli_query($conexion, $consulta);
 ?>
+<?php
+require_once 'cart_id.php';
+
+// La variable $cart_id está disponible y contiene el ID único del carrito.
+// Puedes usar $cart_id para:
+// 1. Consultar la base de datos para cargar los ítems del carrito asociados a este ID.
+// 2. Guardar nuevos ítems o actualizaciones del carrito en la base de datos usando este ID.
+
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
