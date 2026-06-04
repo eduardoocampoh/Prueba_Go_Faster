@@ -1,18 +1,23 @@
 <?php
 session_start();
-include 'db.php';
+require_once 'db_connection.php'; // Usar la nueva conexión PDO
+require_once 'cart_id.php';       // Para obtener $cart_id
 
 // Obtener 3 productos aleatorios para mostrar como destacados
 $consulta_destacados = "SELECT p.*, r.Nombres_rest FROM producto p JOIN restaurante r ON p.id_restaurante = r.id_Restaurante ORDER BY RAND() LIMIT 4";
-$resultado_destacados = mysqli_query($conexion, $consulta_destacados);
-?>
-<?php
-require_once 'cart_id.php';
+// Usar PDO para la consulta
+$stmt_destacados = $pdo->query($consulta_destacados);
+$productos_destacados = $stmt_destacados->fetchAll(PDO::FETCH_ASSOC);
 
-// La variable $cart_id está disponible y contiene el ID único del carrito.
-// Puedes usar $cart_id para:
-// 1. Consultar la base de datos para cargar los ítems del carrito asociados a este ID.
-// 2. Guardar nuevos ítems o actualizaciones del carrito en la base de datos usando este ID.
+// Recuperar los ítems del carrito para el cart_id actual para calcular la cantidad
+$stmt_cart = $pdo->prepare("SELECT quantity FROM cart_items WHERE cart_id = ?");
+$stmt_cart->execute([$cart_id]);
+$cart_items_quantities = $stmt_cart->fetchAll(PDO::FETCH_ASSOC);
+
+$cantidad_carrito = 0;
+foreach ($cart_items_quantities as $item) {
+    $cantidad_carrito += $item['quantity'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -68,7 +73,7 @@ require_once 'cart_id.php';
                     <li><a href="registro_usuario.php">Registrarse</a></li>
                 <?php endif; ?>
                 <li><a href="productos.php">Productos</a></li>
-                <li><a href="carrito.php">Carrito (<?php echo isset($_SESSION['carrito']) ? count($_SESSION['carrito']) : 0; ?>)</a></li>
+                <li><a href="carrito.php">Carrito (<?php echo $cantidad_carrito; ?>)</a></li>
                 <li><a href="#tiendas">Tiendas</a></li>
             </ul>
         </nav>
@@ -95,15 +100,15 @@ require_once 'cart_id.php';
     <section>
         <h2 style="text-align: center; margin-top: 50px;">Productos Destacados</h2>
         <div class="grid_destacados">
-            <?php while($prod = mysqli_fetch_assoc($resultado_destacados)): ?>
-                <div class="tarjeta_inicio">
+            <?php foreach($productos_destacados as $prod): ?>
+                <div class="tarjet-inicio">
                     <img src="imagenes/<?php echo !empty($prod['Imagen_prod']) ? $prod['Imagen_prod'] : 'go_faster.png'; ?>" class="imagen_inicio">
                     <h3 style="margin: 10px 0;"><?php echo htmlspecialchars($prod['Nombres_prod']); ?></h3>
                     <p style="color: #FF978C; font-weight: bold;"><?php echo htmlspecialchars($prod['Nombres_rest']); ?></p>
                     <p style="font-weight: bold; font-size: 1.1em;">$<?php echo number_format($prod['Precio_prod'], 0, ',', '.'); ?></p>
                     <a href="productos.php" class="btn_agregar" style="display: inline-block; text-decoration: none; margin-top: 10px; padding: 5px 15px;">Pedir ahora</a>
                 </div>
-            <?php endwhile; ?>
+            <?php endforeach; ?>
         </div>
     </section>
 
